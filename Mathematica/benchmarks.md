@@ -32,3 +32,9 @@ i=0: 0.25213, 4.82083, 7.27824, 8.55102, 8.86837; i=17 row ~6.3655-6.3953.
 - Trap: at prec 20-40 near chi=+0.998 some modes return exact 0 (Precision=Infinity), up to 6% of f_inf. Otherwise gate "finite, Precision<Infinity, >=12" never accepted a node total off by >1e-12.
 - Cost: uniform p90 1111 s; p60 638 s; node-level ladder 40/60/90 652 s (max err 3e-19); mode-level ladder 40/60/90 427 s (max err 5e-15, all 25 nodes ok). Oracle 400 s.
 - Notebook now uses mode-level ladder 40/60/90, gate 12. fluxAtNode[0,0] serial 21 s, f_inf=0.252131478538500872 (matches prec75). Full grid not yet run.
+
+## Chebyshev interpolant (FluxInterpolation.wl, nR=18, nA=27, lmax=8)
+- Reproduces nodes to 4e-12 rel. fInf(rC=-1) = 6.3993-6.3998 (Newtonian 6.4). FluxInf[10, 0] = 6.15035e-5, FluxHor[10, 0] = 1.259e-8.
+- Coefficient tail (max |c| ~ 6-7): last 3 in rC ~ 6e-5, 4e-5, 2e-5 (f_inf), 1.5e-4..4e-5 (f_H); in chi ~ 1.8e-3, 1.2e-3, 6e-4 (f_inf), 1.4e-3..4.5e-4 (f_H). Chi direction converges slowly -> interpolation error ~1e-4 rel; Honet+ A11 log-spin compactification targets this. Not yet checked against an off-grid Teukolsky evaluation.
+- Evaluation ~27 us per call.
+- Nested-subgrid test (6x9 subgrid i=3i'+1, j=3j'+1, evaluated on all 18x27 nodes): max rel err 0.82 at chi=0.998 column (outside the coarse grid's outermost node 0.985), 5% elsewhere; coarse coefficient tail only ~1.5e-2. f_inf is steep as chi->1 (ISCO has (1-chi)^(1/3) branch point), so the full-grid error near chi=0.998 may exceed the 1e-4 coefficient estimate. Argues for the A12 log(1-chi) variable.

@@ -6,7 +6,10 @@ Hybrid GSF+PN waveform model after Honet+2025 (`biblio/Honet et al. - 2025 - ...
 - Run notebook code headless with `wolframscript -file script.wls` (needs BHPToolkit `KerrGeodesics`` and `Teukolsky``). To evaluate the notebook's own cells: `Get` the `.nb`, pull `Cases[nb, Cell[b_, "Input", ___] :> b, Infinity]`, `ToExpression` them in order, keeping harness variables in a non-`Global`` context (cell 1 is `Clear["Global`*"]`). Shrink `nR`, `nA`, `lmax`, `modes` before the parallel cell for a quick check.
 
 ## Layout
-- `Mathematica/FluxGrid_nonspinning.nb` - the only code. Energy fluxes at infinity/horizon for circular equatorial Kerr orbits on the Honet+ Chebyshev grid: rows `i` = rC nodes (i=0 at ISCO, i=nR-1 far field, r0 ~ 500 r*), columns `j` = χ nodes (j=0 at χ=+0.998 prograde, j=nA-1 retrograde). Returns `{rC, chi, r0^5 FI, r0^(15/2) FH}` per node (A13/A14). Section "Tests and debugging (ignore)" can be skipped.
+- `Mathematica/FluxGrid_nonspinning.nb` - flux computation. Energy fluxes at infinity/horizon for circular equatorial Kerr orbits on the Honet+ Chebyshev grid: rows `i` = rC nodes (i=0 at ISCO, i=nR-1 far field, r0 ~ 500 r*), columns `j` = χ nodes (j=0 at χ=+0.998 prograde, j=nA-1 retrograde). Returns `{rC, chi, r0^5 FI, r0^(15/2) FH}` per node (A13/A14). Section "Tests and debugging (ignore)" can be skipped.
+- `Mathematica/data/fluxGrid_nR18_nA27_lmax8.m` - full grid (18x27x4, lmax=8) extracted from the notebook's cached `data` output; `Get` returns the array.
+- `Mathematica/FluxInterpolation.wl` - package: loads the grid, builds 2D Chebyshev (DCT-II) coefficients; `fInf`/`fHor[rC, chi]`, `FluxInf`/`FluxHor[r0, chi]`, `rISCO[chi]` (closed form, no KerrGeodesics needed), `LoadFluxGrid[file]` for other grids.
+- `Mathematica/ChebyshevTutorial.nb` - tutorial: Chebyshev interpolation theory + exercises, rebuilds `FluxInterpolation.wl` from the grid file.
 - `Mathematica/benchmarks.md` - timings, precision scan, reference values, open questions. Append new measurements there.
 
 ## Where to change X
