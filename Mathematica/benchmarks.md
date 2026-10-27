@@ -25,4 +25,10 @@ i=0: 0.25213, 4.82083, 7.27824, 8.55102, 8.86837; i=17 row ~6.3655-6.3953.
 - Lower lmax for hardest nodes (high-l flux contribution likely small).
 - LaunchKernels[8]; Leaver term/Method option for spheroidal harmonics.
 - Paper uses l' up to 50; near-extremal nodes will worsen with lmax.
-- Notebook currently: lmax=8, prec=60, no fallback (node (0,0) still Indeterminate).
+
+## Per-mode precision scan (lmax=8, S, every mode at prec 20/30/40/60 vs prec90 reference; times = summed kernel-s)
+- Prec needed for 1e-12 on node totals: 30 -> 16 nodes; 40 -> (0,7),(14,26),(17,0/7/20); 60 -> (9,0),(17,26); 90 -> (0,0),(4,0). Uniform prec60 wrong at (0,0),(4,0).
+- prec20 can hang: (0,0),(4,0) ~2400 s each. Start ladder at >=30.
+- Trap: at prec 20-40 near chi=+0.998 some modes return exact 0 (Precision=Infinity), up to 6% of f_inf. Otherwise gate "finite, Precision<Infinity, >=12" never accepted a node total off by >1e-12.
+- Cost: uniform p90 1111 s; p60 638 s; node-level ladder 40/60/90 652 s (max err 3e-19); mode-level ladder 40/60/90 427 s (max err 5e-15, all 25 nodes ok). Oracle 400 s.
+- Notebook now uses mode-level ladder 40/60/90, gate 12. fluxAtNode[0,0] serial 21 s, f_inf=0.252131478538500872 (matches prec75). Full grid not yet run.

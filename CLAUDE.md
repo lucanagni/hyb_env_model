@@ -1,19 +1,26 @@
-# CLAUDE.md
+<!-- verified: cc916f6 2026-10-27 -->
+# hyb_env_model
+Hybrid GSF+PN waveform model after Honet+2025 (`biblio/Honet et al. - 2025 - ...pdf`), later extended with environmental effects. Current stage: reproduce the interpolated 0PA flux grid of Honet+ App. A (eqs. A9-A14), then build a vacuum hybrid model. Read the Honet+ PDF for equations and definitions.
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Goal
-
-Hybrid GSF+PN waveform model based on Honet+2025 (`biblio/Honet et al. - 2025 - ...pdf`), later extended with environmental effects. Current stage: reproduce Honet+ results and build a vacuum hybrid model. Currently reproducing the interpolated flux grid of Honet+ Appendix A (eqs. A13/A14 are referenced in the notebook).
+## Commands
+- Run notebook code headless with `wolframscript -file script.wls` (needs BHPToolkit `KerrGeodesics`` and `Teukolsky``). To evaluate the notebook's own cells: `Get` the `.nb`, pull `Cases[nb, Cell[b_, "Input", ___] :> b, Infinity]`, `ToExpression` them in order, keeping harness variables in a non-`Global`` context (cell 1 is `Clear["Global`*"]`). Shrink `nR`, `nA`, `lmax`, `modes` before the parallel cell for a quick check.
 
 ## Layout
+- `Mathematica/FluxGrid_nonspinning.nb` - the only code. Energy fluxes at infinity/horizon for circular equatorial Kerr orbits on the Honet+ Chebyshev grid: rows `i` = rC nodes (i=0 at ISCO, i=nR-1 far field, r0 ~ 500 r*), columns `j` = χ nodes (j=0 at χ=+0.998 prograde, j=nA-1 retrograde). Returns `{rC, chi, r0^5 FI, r0^(15/2) FH}` per node (A13/A14). Section "Tests and debugging (ignore)" can be skipped.
+- `Mathematica/benchmarks.md` - timings, precision scan, reference values, open questions. Append new measurements there.
 
-- `biblio/`: reference papers (PDFs). Read the Honet+ PDF for equations/definitions rather than guessing.
-- `Mathematica/FluxGrid_nonspinning.nb`: the only code so far. Non-spinning (Schwarzschild) flux grid reproduction. Loads `KerrGeodesics`` and `Teukolsky`` (Black Hole Perturbation Toolkit) and computes energy fluxes at infinity (`"\[ScriptCapitalI]"`) and horizon (`"\[ScriptCapitalH]"`) via `TeukolskyPointParticleMode`, then builds the grid following A13/A14. Written with Mathematica 14.0 on Linux.
+## Where to change X
+- Mode range or grid size: `nR`, `nA`, `lmax` in the definitions cell (`modes` derives from `lmax`).
+- Precision: `precLadder = {40, 60, 90}` and `precGoal = 12`. `modeAdaptive` accepts a mode at the first prec where both fluxes pass `fluxOkQ`; a mode failing at all prec returns `{Indeterminate, Indeterminate, None}`, and the parallel cell prints `Counts` of prec used.
+- Parallel run: last input cell of the main section, `ParallelMap` over (i, j, l, m) tasks, then `nodeFromModes` per node. Full grid at lmax=8 ≈ 36 min on 4 kernels.
 
-## Working with the notebook
+## Conventions
+- Edit `.nb` files through a headless front end (`UsingFrontEnd`, `NotebookOpen`, `NotebookWrite` with boxes from `FrontEnd`UndocumentedTestFEParserPacket`), then `SetOptions[nb, Visible -> Inherited]` before `NotebookSave` - keeps cache offsets and typesetting valid; text edits break both.
+- Read `.nb` by grepping `Cell[` / `RowBox` input cells or dumping inputs via `wolframscript`; files carry cached outputs.
 
-- `.nb` files are large Wolfram expression text with cached outputs; don't read whole. Use `grep -a` for the `Cell[` / `RowBox` input cells, or ask the user for the relevant cell.
-- Run headless with `wolframscript -file`/`-code` (needs the BHPToolkit packages installed); the notebook has a section "Tests and debugging (ignore)" that can be skipped.
-- Settings: `lmax = 8`, `prec = 60` (prec 30 fails for r0 ≳ 2500 and near-extremal spin). The grid is built with `ParallelTable` over 4 kernels (`DistributeDefinitions` needed). Full grid ≈ 52 min at lmax=8 (≈ 11 min at lmax=4). Node (i=0, j=0) (ISCO, χ≈0.998) returns `Indeterminate` at lmax=8 (`SpinWeightedSpheroidalHarmonicS::maxterms`, 200-term Leaver limit); unresolved.
-- Known issue: some modes at certain (p, e) emit `Infinite expression`/`Indeterminate expression` messages (1/0 warnings from the Teukolsky mode computation).
+## Gotchas
+- A notebook saved after `NotebookOpen[..., Visible -> False]` stores `Visible->False` and opens as an invisible window; reset it as above.
+- Load the packages on the master kernel too before `DistributeDefinitions`; otherwise `KerrGeoOrbit` etc. are distributed as `Global`` shadows and everything comes back unevaluated.
+- Low precision near χ=0.998 returns an exact `0` flux (`Precision = Infinity`), a silent wrong answer; `fluxOkQ` rejects it. prec 20 can hang for ~40 min per node there.
+- Node (0,0) needs prec 90 at lmax=8 (fails at 60 with `SpinWeightedSpheroidalHarmonicS::maxterms`).
+- Some modes emit `Infinite expression`/`Indeterminate expression` warnings during the Teukolsky mode computation; `Quiet` does not silence subkernel messages.
