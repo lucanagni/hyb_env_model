@@ -9,6 +9,7 @@ Hybrid GSF+PN waveform model after Honet+2025 (`biblio/Honet et al. - 2025 - ...
 - `Mathematica/FluxGrid_nonspinning.nb` - flux computation. Energy fluxes at infinity/horizon for circular equatorial Kerr orbits on the Honet+ Chebyshev grid: rows `i` = rC nodes (i=0 at ISCO, i=nR-1 far field, r0 ~ 500 r*), columns `j` = χ nodes (j=0 at χ=+0.998 prograde, j=nA-1 retrograde). Returns `{rC, chi, r0^5 FI, r0^(15/2) FH}` per node (A13/A14). Section "Tests and debugging (ignore)" can be skipped.
 - `Mathematica/data/fluxGrid_nR18_nA27_lmax8.m` - full grid (18x27x4, lmax=8) extracted from the notebook's cached `data` output; `Get` returns the array.
 - `Mathematica/FluxInterpolation.wl` - package: loads the grid, builds 2D Chebyshev (DCT-II) coefficients; `fInf`/`fHor[rC, chi]`, `FluxInf`/`FluxHor[r0, chi]`, `rISCO[chi]` (closed form, no KerrGeodesics needed), `LoadFluxGrid[file]` for other grids.
+- `Mathematica/Fig14.nb` - PN ∞-flux assembly (nonspinning 4.5PN + SO/SS/SSS, sources in `biblio/`) and SF+PN hybrid flux (Honet eq. 43) vs Honet Fig. 9. SF flux uses `FluxInf` from `FluxInterpolation.wl` with r0(x) from eq. A15.
 - `Mathematica/ChebyshevTutorial.nb` - tutorial: Chebyshev interpolation theory + exercises, rebuilds `FluxInterpolation.wl` from the grid file.
 - `Mathematica/benchmarks.md` - timings, precision scan, reference values, open questions. Append new measurements there.
 
