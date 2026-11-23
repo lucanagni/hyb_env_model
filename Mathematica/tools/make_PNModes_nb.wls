@@ -1,0 +1,99 @@
+#!/usr/bin/env wolframscript
+(* Generates Mathematica/PNModes.nb (definitions are copied into HybridModes.nb by hand): PN mode amplitudes h_lm from PNpedia, split into
+   nonspinning (NS), spin-orbit (SO), spin-spin (SS) and cubic-in-spin (SSS) sectors.
+   Usage: wolframscript -file Mathematica/tools/make_PNModes_nb.wls [pnpediaDir]
+   Rerun after updating PNpedia; the notebook's Checks section compares against the files. *)
+
+pnDir = If[Length[$ScriptCommandLine] > 1, $ScriptCommandLine[[2]],
+   FileNameJoin[{$HomeDirectory, "repos", "PNpedia"}]];
+outFile = If[Length[$ScriptCommandLine] > 2, $ScriptCommandLine[[3]], FileNameJoin[{DirectoryName[DirectoryName[$InputFileName]], "PNModes.nb"}]];
+lmax = 8;
+
+circ = FileNameJoin[{pnDir, "Core post-Newtonian quantities", "Circular orbits"}];
+nsDir = FileNameJoin[{circ, "Nonspinning", "Without tidal effects", "Waveform"}];
+spDir = FileNameJoin[{circ, "Spinning", "Nonprecessing", "Without tidal effects", "Waveform"}];
+h22Eq617 = FileNameJoin[{pnDir, "Publications", "arXiv-2304.11186v4", "Equation (6.17).txt"}];
+pnCommit = StringTrim@RunProcess[{"git", "-C", pnDir, "rev-parse", "--short", "HEAD"}, "StandardOutput"];
+
+modes = Flatten[Table[{l, m}, {l, 2, lmax}, {m, 1, l}], 1];
+file[dir_, {l_, m_}] := FileNameJoin[{dir, "h_" <> ToString[l] <> "_" <> ToString[m] <> ".txt"}];
+
+(* --- sector split: s -> eps s, sigma -> eps sigma; NS taken from the Nonspinning file --- *)
+hNSraw[lm_] := Get[file[nsDir, lm]];
+hSPraw[lm_] := Get[file[spDir, lm]];
+sector[lm_, k_] := Expand@Coefficient[
+    Expand[hSPraw[lm] /. {s -> eps s, \[Sigma] -> eps \[Sigma]}], eps, k];
+
+(* prefactor c nu x^n0 from the leading NS term, c = its value at nu -> 0, delta -> 1 *)
+pref[lm_] := Module[{e = Expand[hNSraw[lm] /. Log[x] -> logx /. {x^pw_ :> y^(2 pw), x -> y^2}], n0, c},
+   n0 = Exponent[e, y, Min];
+   c = Simplify[Expand[Coefficient[e, y, n0]/\[Nu]] /. {\[Nu] -> 0, \[Delta] -> 1}];
+   c \[Nu] x^(n0/2)];
+
+(* "pf*(x^(a)*(coef) + ...)" with coefficients grouped in nu *)
+toString[e_] := ToString[e, InputForm];
+seriesString[0, _] := "0";
+seriesString[e_, p_] := Module[{r = Expand[e/p /. Log[x] -> logx /. {x^pw_ :> y^(2 pw), x -> y^2}], cl, terms},
+   If[! FreeQ[Denominator[Together[r]], \[Nu]], Print["WARNING: 1/nu in ", e]];
+   cl = CoefficientList[r, y];
+   terms = DeleteCases[Table[{(k - 1)/2, Collect[cl[[k]], {\[Nu], logx}, Simplify]}, {k, Length[cl]}], {_, 0}];
+   toString[p] <> "*(\n    " <> StringRiffle[
+      ("x^(" <> toString[#1] <> ")*(" <> toString[#2 /. logx -> Log[x]] <> ")") & @@@ terms,
+      " +\n    "] <> ")"];
+
+args = <|"NS" -> "[x_, \[Nu]_, \[Delta]_]", "SO" -> "[x_, \[Nu]_, \[Delta]_, s_, \[Sigma]_]"|>;
+args["SS"] = args["SSS"] = args["SO"];
+piece[sec_, lm_] := Switch[sec, "NS", hNSraw[lm], "SO", sector[lm, 1], "SS", sector[lm, 2], "SSS", sector[lm, 3]];
+srcNS = "(* Source: PNpedia (commit " <> pnCommit <> ") Core post-Newtonian quantities/Circular orbits/Nonspinning/Without tidal effects/Waveform/h_l_m.txt\n   <- Henry, Faye, Blanchet 2022, arXiv:2210.15602v2, eqs. (3.2), (3.4). 3.5PN. *)";
+srcSP[k_] := "(* Source: PNpedia (commit " <> pnCommit <> ") Core post-Newtonian quantities/Circular orbits/Spinning/Nonprecessing/Without tidal effects/Waveform/h_l_m.txt\n   <- ancillary file modes_PNexp_full_35PN.dat.m of Henry 2022, arXiv:2210.15602v2. 3.5PN.\n   Terms of order " <> ToString[k] <> " in the spins (s, \[Sigma]) of the PNpedia expression. *)";
+
+sectorCell[sec_, l_] := StringRiffle[Join[
+    {If[sec == "NS", srcNS, srcSP[Position[{"SO", "SS", "SSS"}, sec][[1, 1]]]]},
+    Table["(* (" <> ToString[l] <> "," <> ToString[m] <> ") *)\nh" <> sec <> "[" <> ToString[l] <> ", " <> ToString[m] <> "]" <>
+       args[sec] <> " := " <> seriesString[piece[sec, {l, m}], pref[{l, m}]] <> ";", {m, 1, l}]], "\n\n"];
+
+(* 4PN nonspinning piece of h22: x^4 coefficient of eq. (6.17), times the Newtonian prefactor 8 Sqrt[Pi/5] nu x *)
+h22hat = Get[h22Eq617];
+h22x4 = Collect[Coefficient[Expand[h22hat], x, 4], {\[Nu], Log[16 x]}, Simplify];
+cell4PN = "(* Source: PNpedia (commit " <> pnCommit <> ") Publications/arXiv-2304.11186v4/Equation (6.17).txt\n   <- Blanchet, Faye, Henry, Larrouturou, Trestini 2023, arXiv:2304.11186v4, eq. (6.17) (also eq. (11) of arXiv:2304.11185v4).\n   Only the 4PN (x^4) term of h22 / (8 Sqrt[Pi/5] \[Nu] x); lower orders are in hNS[2, 2]. *)\nhNS4PN[2, 2][x_, \[Nu]_] := 8*Sqrt[Pi/5]*\[Nu]*x*(x^4*(" <>
+   toString[h22x4] <> "));";
+
+(* ---------------------------------------------------------------- notebook cells *)
+txt[s_] := Cell[s, "Text"];
+sec[s_] := Cell[s, "Section"];
+sub[s_] := Cell[s, "Subsection"];
+in[s_String] := Cell[First@FrontEndExecute[FrontEnd`UndocumentedTestFEParserPacket[s, False]], "Input"];
+
+secCells[name_, title_, intro_] := Join[{sec[title], txt[intro]}, Table[in[sectorCell[name, l]], {l, 2, lmax}]];
+
+cellsFun[] := Join[
+  {Cell["PN mode amplitudes from PNpedia", "Title"],
+   txt["Generated by tools/make_PNModes_nb.wls from PNpedia commit " <> pnCommit <> ". Rerun the script rather than editing the definitions by hand."],
+   in["Clear[\"Global`*\"]"],
+   sec["Conventions"],
+   txt["Waveform decomposition (PNpedia README of the Waveform folders): h = h+ - i hx = (G m/(c^2 R)) Sum_lm h_lm e^(-i m psi) Y^(-2)_lm(theta, phi), with psi the tail-shifted phase (Honet eq. 9). Only m > 0 modes are listed; h_(l,-m) = (-1)^l Conjugate[h_lm]. G = c = 1, m = M total mass."],
+   txt["Variables: x = (M omega_22/2)^(2/3) frequency parameter of the (2,2) mode; \[Nu] = m1 m2/M^2; \[Delta] = (m1 - m2)/M = Sqrt[1 - 4 \[Nu]]; s = (m1^2 \[Chi]1 + m2^2 \[Chi]2)/M^2; \[Sigma] = (m2 \[Chi]2 - m1 \[Chi]1)/M."],
+   txt["Spin map for a spinning primary (m1, the heavier body, spin \[Chi]) and a nonspinning secondary (Honet eq. B6: a = m1 \[Chi], S = m1 a, \[CapitalSigma] = -M a)."],
+   in["\[Delta]Of[\[Nu]_] := Sqrt[1 - 4*\[Nu]];\nsOf[\[Nu]_, \[Chi]_] := ((1 + \[Delta]Of[\[Nu]])/2)^2*\[Chi];\n\[Sigma]Of[\[Nu]_, \[Chi]_] := -((1 + \[Delta]Of[\[Nu]])/2)*\[Chi];"],
+   txt["Each mode is written as (Newtonian prefactor c \[Nu] x^n0) * (sum over x^k terms). The prefactor is the leading nonspinning term with \[Nu] -> 0, \[Delta] -> 1; the \[Nu]-dependence of the leading term (Honet's \[Alpha]_lm) stays inside the bracket."]},
+  secCells["NS", "Nonspinning", "hNS[l, m][x, \[Nu], \[Delta]]: nonspinning h_lm through 3.5PN (\[Delta] appears in odd-m modes)."],
+  {sub["4PN term of h22"], in[cell4PN]},
+  secCells["SO", "Spin-orbit", "hSO[l, m][x, \[Nu], \[Delta], s, \[Sigma]]: terms linear in the spins, through 3.5PN."],
+  secCells["SS", "Spin-spin", "hSS[l, m][x, \[Nu], \[Delta], s, \[Sigma]]: terms quadratic in the spins, through 3.5PN (black-hole values of the spin-induced multipoles)."],
+  secCells["SSS", "Cubic in spin", "hSSS[l, m][x, \[Nu], \[Delta], s, \[Sigma]]: terms cubic in the spins, through 3.5PN. No quartic-in-spin terms are known at this order."],
+  {sec["Total"],
+   txt["hPN[l, m][x, \[Nu], \[Chi]]: sum of the sectors (plus the 4PN term for (2,2)) with the spin map substituted. hPNgen keeps \[Delta], s, \[Sigma] free."],
+   in["hPNgen[l_, m_][x_, \[Nu]_, \[Delta]_, s_, \[Sigma]_] := hNS[l, m][x, \[Nu], \[Delta]] + hSO[l, m][x, \[Nu], \[Delta], s, \[Sigma]] + hSS[l, m][x, \[Nu], \[Delta], s, \[Sigma]] + hSSS[l, m][x, \[Nu], \[Delta], s, \[Sigma]] + If[{l, m} == {2, 2}, hNS4PN[2, 2][x, \[Nu]], 0];\nhPN[l_, m_][x_, \[Nu]_, \[Chi]_] := hPNgen[l, m][x, \[Nu], \[Delta]Of[\[Nu]], sOf[\[Nu], \[Chi]], \[Sigma]Of[\[Nu], \[Chi]]];\nmodesPN = " <> toString[modes] <> ";"],
+   sec["Checks"],
+   txt["1) The sectors sum back to the PNpedia spinning file (expect 0 for every mode). 2) hNS equals the spinning file at s = \[Sigma] = 0 (expect True). 3) Eq. (6.17) through 3.5PN equals hNS[2, 2] (expect 0)."],
+   in["pnDir = \"" <> pnDir <> "\";\nspFile[{l_, m_}] := FileNameJoin[{pnDir, \"Core post-Newtonian quantities\", \"Circular orbits\", \"Spinning\", \"Nonprecessing\", \"Without tidal effects\", \"Waveform\", \"h_\" <> ToString[l] <> \"_\" <> ToString[m] <> \".txt\"}];\nchk1 = Table[lm -> Simplify[Expand[(hPNgen @@ lm)[x, \[Nu], \[Delta], s, \[Sigma]] - If[lm == {2, 2}, hNS4PN[2, 2][x, \[Nu]], 0] - Get[spFile[lm]]]], {lm, modesPN}];\nUnion[Last /@ chk1]"],
+   in["Union@Table[Simplify[Expand[(hNS @@ lm)[x, \[Nu], \[Delta]] - (Get[spFile[lm]] /. {s -> 0, \[Sigma] -> 0})]] === 0, {lm, modesPN}]"],
+   in["eq617 = Get[FileNameJoin[{pnDir, \"Publications\", \"arXiv-2304.11186v4\", \"Equation (6.17).txt\"}]];\nSimplify[Expand[(8*Sqrt[Pi/5]*\[Nu]*x*(eq617 - x^4*Coefficient[Expand[eq617], x, 4]) /. Log[16*x] -> 4*Log[2] + Log[x]) - hNS[2, 2][x, \[Nu], \[Delta]]]]"]}];
+
+UsingFrontEnd[
+  cells = cellsFun[];
+  nb = CreateDocument[cells, Visible -> False, WindowTitle -> "PNModes"];
+  SetOptions[nb, Visible -> Inherited];
+  NotebookSave[nb, outFile];
+  NotebookClose[nb]];
+Print["wrote ", outFile, " (", Length[modes], " modes, PNpedia ", pnCommit, ")"];

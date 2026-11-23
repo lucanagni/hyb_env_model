@@ -1,6 +1,6 @@
 (* ::Package:: *)
 
-(* Chebyshev interpolant of the 0PA flux grid produced by FluxGrid_nonspinning.nb
+(* Chebyshev interpolant of the 0PA flux grid produced by FluxesGrid.nb
    (Honet+2025 App. A, eqs. A9-A14).
    Grid: rC_i = Cos[(2i+1)Pi/(2nR)], chi_j = Cos[(2j+1)Pi/(2nA)] (Chebyshev-Gauss nodes),
    r0 = 2 r*/(rC+1), r* = ISCO radius; data rows {rC, chi, r0^5 FI, r0^(15/2) FH}.
