@@ -1,5 +1,5 @@
 #!/usr/bin/env wolframscript
-(* Generates Mathematica/PNModes.nb (definitions are copied into HybridModes.nb by hand): PN mode amplitudes h_lm from PNpedia, split into
+(* Generates Mathematica/Modes/PNModes.nb (definitions are copied into HybridModes.nb by hand): PN mode amplitudes h_lm from PNpedia, split into
    nonspinning (NS), spin-orbit (SO), spin-spin (SS) and cubic-in-spin (SSS) sectors.
    Usage: wolframscript -file Mathematica/tools/make_PNModes_nb.wls [pnpediaDir]
    Rerun after updating PNpedia; the notebook's Checks section compares against the files. *)

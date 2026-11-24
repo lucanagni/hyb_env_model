@@ -6,7 +6,7 @@
    Stored: cbar_lm = C_lm * pref, pref = r0^(l/2)/Omega^2 (l+m even), r0^((l+1)/2)/Omega^2 (l+m odd),
    Omega = 1/(chi + r0^(3/2)); C_lm = spherical-basis Teukolsky infinity amplitude (m >= 1 only).
    Usage:
-     Get["/path/to/ModeInterpolation.wl"]   (loads FluxInterpolation.wl and data/m*/amplGrid_*.m)
+     Get["/path/to/ModeInterpolation.wl"]   (loads ../Fluxes/FluxInterpolation.wl and data/m*/amplGrid_*.m)
      cBar[l, m, rC, chi]                    interpolated compactified cbar_lm, rC, chi in [-1,1]
      ModeAmp[l, m, r0, chi]                 physical C_lm (units m1 = 1), r0 >= r*(chi)
      ModePrefactor[l, m, r0, chi]           pref above
@@ -14,7 +14,7 @@
      LoadModeGrid[dir]                      reload from another data directory *)
 
 With[{dir = DirectoryName[$InputFileName]},
-  If[!MemberQ[$Packages, "FluxInterpolation`"], Get[FileNameJoin[{dir, "FluxInterpolation.wl"}]]]
+  If[!MemberQ[$Packages, "FluxInterpolation`"], Get[FileNameJoin[{ParentDirectory[dir], "Fluxes", "FluxInterpolation.wl"}]]]
 ];
 
 BeginPackage["ModeInterpolation`", {"FluxInterpolation`"}];
